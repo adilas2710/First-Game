@@ -1,32 +1,24 @@
-/*
-This is a 2D game where the goal is to score as many points as possible 
-by collecting red targets. The AI helped me significantly with debugging a
-nd structuring the movement logic.
-
-How it works: The game runs on a 60 FPS loop controlled by a Timer. 
-The player moves a cyan square using the arrow keys; the code performs 
-real-time collision detection by calculating the distance between the player
- and the target. When the X and Y coordinates of both objects overlap, 
- the score increases, and the target teleports to a new random location using 
- the Random class. Boundary checks have been implemented to keep the player within 
- the game area. */
+import java.io.*;
+import java.util.Scanner;
 import javax.swing.*;       
 import java.awt.*;             
 import java.awt.event.*;        
 import java.util.Random;
 
-// Ho rimosso "package java;" perché causava errore di permessi
+
 public class GiocoJava extends JPanel implements ActionListener, KeyListener {
 
     private int playerX = 350;      
     private int playerY = 250;      
     private int puntoX, puntoY;     
-    private int score = 0;          
+    private int score = 0;    
+    private int highScore = 0;      
 
     private Timer timer;            
     private Random rand = new Random();     
-
+    //COSTRUTTORE
     public GiocoJava(){
+        highScore = caricaRecord();
         timer = new Timer(15, this);        
         timer.start();
 
@@ -35,37 +27,63 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
 
         rigeneraPunto();
     }
+    //Creazione file e salvataggio
+    private void salvaRecord(){
+        try {
+            FileWriter writer = new FileWriter("record.txt");
+            writer.write("" + score);
+            writer.close();
+        } catch (IOException e) {
+            System.out.println("Errore nel salvataggio!");
+        }
+    }
 
+    //Carica record
+private int caricaRecord(){
+    try {
+        File f = new File("record.txt");
+        if(!f.exists()) return 0; // Se il file non esiste ancora
+        Scanner lettore = new Scanner(f);
+        int r = lettore.nextInt();
+        lettore.close(); 
+        return r;
+    } catch (Exception e){
+        return 0;
+    }
+}
     private void rigeneraPunto(){
         // Genera coordinate casuali stando un po' lontani dai bordi
         puntoX = rand.nextInt(700) + 20; 
         puntoY = rand.nextInt(500) + 20; 
     }
 
-    @Override
-    protected void paintComponent(Graphics g){
-        super.paintComponent(g);
+@Override
+protected void paintComponent(Graphics g){
+    super.paintComponent(g);
 
-        // Sfondo
-        g.setColor(Color.BLACK);
-        g.fillRect(0, 0, 800, 600);
+    // 1. DISEGNA LO SFONDO
+    g.setColor(Color.BLACK);
+    g.fillRect(0, 0, 800, 600);
 
-        // GIOCATORE - Usiamo playerX e playerY (Prima usavi puntoX!)
-        g.setColor(Color.CYAN);
-        g.fillRect(playerX, playerY, 30, 30);
+    // 2. IMPOSTA IL COLORE PER I TESTI PRINCIPALI
+    g.setColor(Color.WHITE);
+    g.setFont(new Font("Arial", Font.BOLD, 20)); // Font grande per i punti
+    
+    g.drawString("Punti: " + score, 20, 30);
+    g.drawString("Record: " + highScore, 20, 60);
 
-        // OBIETTIVO
-        g.setColor(Color.RED);
-        g.fillOval(puntoX, puntoY, 20, 20);
+    // 3. DISEGNA GLI OGGETTI
+    g.setColor(Color.CYAN);
+    g.fillRect(playerX, playerY, 30, 30);
 
-        // Punteggio
-        g.setColor(Color.WHITE);
-        g.drawString("Punti: " + score, 20, 30);
-        
-        g.setFont(new Font("Arial", Font.ITALIC, 12)); 
-        g.setColor(Color.GRAY); 
-        g.drawString("made by adilas2710 & Gemini", 620, 550);
-    }
+    g.setColor(Color.RED);
+    g.fillOval(puntoX, puntoY, 20, 20);
+
+    // 4. DISEGNA I CREDITI (In piccolo e grigio)
+    g.setFont(new Font("Arial", Font.ITALIC, 12)); 
+    g.setColor(Color.GRAY); 
+    g.drawString("made by adilas2710 & Gemini", 600, 550);
+}
 
     @Override
     public void actionPerformed(ActionEvent e) {
@@ -73,6 +91,11 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
         if (Math.abs(playerX - puntoX) < 30 && Math.abs(playerY - puntoY) < 30){
             score ++;       
             rigeneraPunto();    
+
+            if (score > highScore){
+                highScore = score;
+                salvaRecord();
+            }
         }
         repaint();  
     }
