@@ -23,15 +23,22 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
     private int playerX = 350;      
     private int playerY = 250;      
     private int puntoX, puntoY;     
-    private int score = 0;    
+    private int score = 0;    // TEST: Partiamo da 9
     private int highScore = 0;    
     private int velocita = 15;  
     private int nemicoX, nemicoY;
     private boolean nemicoAttivo = false;
     private int proiettileX, proiettileY;
     private boolean proiettileAttivo = false;
-    private int velocitaProiettile = 10;
+    
+    // --- SETTAGGI PER IL TEST ---
+    private int velocitaProiettile = 2;        
+    private int inseguimentoProiettile = 2;    
+    private int limiteInseguimento = 600; // Il proiettile smette di seguire quando X < 600
+
     private boolean gameOver = false; 
+    private int bonusX, bonusY;
+    private boolean bonusAttivo = false;
 
     private Timer timer;            
     private Random rand = new Random();     
@@ -39,7 +46,7 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
     //COSTRUTTORE
     public GiocoJava(){
         highScore = caricaRecord();
-        timer = new Timer(15, this);        
+        timer = new Timer(10, this);        
         timer.start();
 
         addKeyListener(this);
@@ -81,6 +88,12 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
         puntoY = rand.nextInt(500) + 20; 
     }
 
+    private void generaBonus() {
+        bonusX = rand.nextInt(700) + 20;
+        bonusY = rand.nextInt(500) + 20;
+        bonusAttivo = true;
+    }
+
     // Metodo per resettare il gioco
     private void resetGioco() {
         score = 0;
@@ -89,6 +102,7 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
         playerY = 250;
         nemicoAttivo = false;
         proiettileAttivo = false;
+        bonusAttivo = false;
         gameOver = false;
         rigeneraPunto();
     }
@@ -121,8 +135,13 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
             
             if(proiettileAttivo){
                 g.setColor(Color.YELLOW);
-                g.fillOval(proiettileX, proiettileY, 10, 10);
+                g.fillOval(proiettileX, proiettileY, 12, 12);
             }
+        }
+
+        if(bonusAttivo){
+            g.setColor(Color.GREEN);
+            g.fillRect(bonusX, bonusY, 25, 25);
         }
 
         // --- SCHERMATA GAME OVER ---
@@ -147,25 +166,47 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (!gameOver) { // La logica gira solo se non è game over
+        if (!gameOver) { 
             
-            // Collisione punto rosso
+            // 1. COLLISIONE PUNTO ROSSO
             if (Math.abs(playerX - puntoX) < 30 && Math.abs(playerY - puntoY) < 30){
-                score ++;       
+                score += 1; // TEST       
                 rigeneraPunto();    
+                
+                // Attivazione immediata nemico a 20 o più
+                if(score >= 20 && !nemicoAttivo) {
+                    nemicoAttivo = true;
+                    nemicoX = 730;
+                    nemicoY = 280;
+                }
+                
+                if(score % 5 == 0) generaBonus();
+                if(score == 10) velocita += 5;
+                
                 if (score > highScore){
                     highScore = score;
                     salvaRecord();
                 }
-                if(score == 10) velocita += 5;
-                if(score == 20) {
+            }
+
+            // 2. COLLISIONE BONUS VERDE
+            if (bonusAttivo && Math.abs(playerX - bonusX) < 30 && Math.abs(playerY - bonusY) < 30) {
+                score += 5;
+                bonusAttivo = false;
+                
+                if(score >= 20 && !nemicoAttivo) {
                     nemicoAttivo = true;
-                    nemicoX = 700;
-                    nemicoY = 300;
+                    nemicoX = 730;
+                    nemicoY = 280;
+                }
+                
+                if (score > highScore) { 
+                    highScore = score; 
+                    salvaRecord(); 
                 }
             }
 
-            // Logica nemico
+            // 3. LOGICA NEMICO E PROIETTILE
             if(nemicoAttivo){
                 if(!proiettileAttivo){
                     proiettileX = nemicoX;
@@ -173,20 +214,21 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
                     proiettileAttivo = true;
                 }
                 
-                // Collisione fisica col nemico
-                if (Math.abs(playerX - nemicoX) < 35 && Math.abs(playerY - nemicoY) < 35) {
-                    gameOver = true;
-                }
+                if (Math.abs(playerX - nemicoX) < 35 && Math.abs(playerY - nemicoY) < 35) gameOver = true;
             }
 
-            // Movimento e collisione proiettile
             if(proiettileAttivo){
-                proiettileX -= velocitaProiettile;
+                proiettileX -= velocitaProiettile; 
+
+                // INSEGUIMENTO VERTICALE (Con limite tecnico per permettere lo schivamento)
+                if (proiettileX > limiteInseguimento) {
+                    if (proiettileY < playerY) proiettileY += inseguimentoProiettile;
+                    else if (proiettileY > playerY) proiettileY -= inseguimentoProiettile;
+                }
+
                 if (proiettileX < 0) proiettileAttivo = false;
 
-                if (Math.abs(proiettileX - playerX) < 25 && Math.abs(proiettileY - playerY) < 25) {
-                    gameOver = true;
-                }
+                if (Math.abs(proiettileX - playerX) < 25 && Math.abs(proiettileY - playerY) < 25) gameOver = true;
             }
         }
         repaint();  
@@ -201,10 +243,11 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
             return; 
         }
 
-        if (key == KeyEvent.VK_A && playerX > 0)  playerX -= velocita;       
-        if (key == KeyEvent.VK_D && playerX < 750) playerX += velocita; 
-        if (key == KeyEvent.VK_W && playerY > 0)    playerY -= velocita; 
-        if (key == KeyEvent.VK_S && playerY < 530)  playerY += velocita; 
+        // Supporto WASD + Frecce
+        if ((key == KeyEvent.VK_A || key == KeyEvent.VK_LEFT) && playerX > 0)  playerX -= velocita;       
+        if ((key == KeyEvent.VK_D || key == KeyEvent.VK_RIGHT) && playerX < 750) playerX += velocita; 
+        if ((key == KeyEvent.VK_W || key == KeyEvent.VK_UP) && playerY > 0)    playerY -= velocita; 
+        if ((key == KeyEvent.VK_S || key == KeyEvent.VK_DOWN) && playerY < 530)  playerY += velocita; 
     }
 
     @Override public void keyTyped(KeyEvent e){}
