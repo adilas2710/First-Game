@@ -11,7 +11,6 @@ real-time collision detection by calculating the distance between the player
  the Random class. Boundary checks have been implemented to keep the player within 
  the game area. */
 
-
 import java.io.*;
 import java.util.Scanner;
 import javax.swing.*;       
@@ -32,6 +31,7 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
     private int proiettileX, proiettileY;
     private boolean proiettileAttivo = false;
     private int velocitaProiettile = 10;
+    private boolean gameOver = false; 
 
     private Timer timer;            
     private Random rand = new Random();     
@@ -52,7 +52,7 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
     private void salvaRecord(){
         try {
             FileWriter writer = new FileWriter("record.txt");
-            writer.write("" + highScore); // Salviamo il record, non lo score attuale
+            writer.write("" + highScore); 
             writer.close();
         } catch (IOException e) {
             System.out.println("Errore nel salvataggio!");
@@ -63,7 +63,7 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
     private int caricaRecord(){
         try {
             File f = new File("record.txt");
-            if(!f.exists()) return 0; // Se il file non esiste ancora
+            if(!f.exists()) return 0; 
             Scanner lettore = new Scanner(f);
             int r = 0;
             if(lettore.hasNextInt()){
@@ -77,9 +77,20 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
     }
 
     private void rigeneraPunto(){
-        // Genera coordinate casuali stando un po' lontani dai bordi
         puntoX = rand.nextInt(700) + 20; 
         puntoY = rand.nextInt(500) + 20; 
+    }
+
+    // Metodo per resettare il gioco
+    private void resetGioco() {
+        score = 0;
+        velocita = 15;
+        playerX = 350;
+        playerY = 250;
+        nemicoAttivo = false;
+        proiettileAttivo = false;
+        gameOver = false;
+        rigeneraPunto();
     }
 
     @Override
@@ -92,7 +103,7 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
 
         // 2. IMPOSTA IL COLORE PER I TESTI PRINCIPALI
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 20)); // Font grande per i punti
+        g.setFont(new Font("Arial", Font.BOLD, 20)); 
         
         g.drawString("Punti: " + score, 20, 30);
         g.drawString("Record: " + highScore, 20, 60);
@@ -104,7 +115,6 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
         g.setColor(Color.RED);
         g.fillOval(puntoX, puntoY, 20, 20);
 
-        // DISEGNA IL NEMICO E IL PROIETTILE SE ATTIVI
         if(nemicoAttivo){
             g.setColor(Color.ORANGE);
             g.fillRect(nemicoX, nemicoY, 40, 40);
@@ -115,7 +125,21 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
             }
         }
 
-        // 4. DISEGNA I CREDITI (In piccolo e grigio)
+        // --- SCHERMATA GAME OVER ---
+        if (gameOver) {
+            g.setColor(new Color(0, 0, 0, 200)); 
+            g.fillRect(0, 0, 800, 600);
+            
+            g.setColor(Color.RED);
+            g.setFont(new Font("Arial", Font.BOLD, 60));
+            g.drawString("GAME OVER", 220, 280);
+            
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.PLAIN, 25));
+            g.drawString("Premi 'R' per riprovare", 270, 350);
+        }
+
+        // 4. DISEGNA I CREDITI
         g.setFont(new Font("Arial", Font.ITALIC, 12)); 
         g.setColor(Color.GRAY); 
         g.drawString("made by adilas2710 & Gemini", 600, 550);
@@ -123,68 +147,60 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        // Logica di collisione
-        if (Math.abs(playerX - puntoX) < 30 && Math.abs(playerY - puntoY) < 30){
-            score ++;       
-            rigeneraPunto();    
-
-            if (score > highScore){
-                highScore = score;
-                salvaRecord();
-            }
-            if(score == 10){
-                velocita += 5;
-            }
-            if(score == 20){
-                nemicoAttivo = true;
-                nemicoX = 700;
-                nemicoY = 300;
-            }
-        }
-
-        // Logica gestione nemico e proiettile
-        if(nemicoAttivo){
-            if(!proiettileAttivo){
-                proiettileX = nemicoX;
-                proiettileY = nemicoY + 15;
-                proiettileAttivo = true; // Attiviamo il proiettile
-            }
-        }
-
-        //Movimento proiettile verso sinistra  
-        if(proiettileAttivo){
-            proiettileX -= velocitaProiettile;
+        if (!gameOver) { // La logica gira solo se non è game over
             
-            // Se il proiettile esce dallo schermo, lo resettiamo
-            if (proiettileX < 0) {
-                proiettileAttivo = false;
+            // Collisione punto rosso
+            if (Math.abs(playerX - puntoX) < 30 && Math.abs(playerY - puntoY) < 30){
+                score ++;       
+                rigeneraPunto();    
+                if (score > highScore){
+                    highScore = score;
+                    salvaRecord();
+                }
+                if(score == 10) velocita += 5;
+                if(score == 20) {
+                    nemicoAttivo = true;
+                    nemicoX = 700;
+                    nemicoY = 300;
+                }
             }
 
-            // CONTROLLO COLLISIONE: Se il proiettile colpisce il giocatore
-            if (Math.abs(proiettileX - playerX) < 25 && Math.abs(proiettileY - playerY) < 25) {
-                score = 0; // Hai perso! Reset punti
-                nemicoAttivo = false;
-                proiettileAttivo = false;
-                velocita = 15; // Resettiamo anche la velocità
-                System.out.println("Colpito! Game Over");
-            }
-            // CONTROLLO COLLISIONE: Giocatore contro Nemico
-            if (nemicoAttivo) {
+            // Logica nemico
+            if(nemicoAttivo){
+                if(!proiettileAttivo){
+                    proiettileX = nemicoX;
+                    proiettileY = nemicoY + 15;
+                    proiettileAttivo = true;
+                }
+                
+                // Collisione fisica col nemico
                 if (Math.abs(playerX - nemicoX) < 35 && Math.abs(playerY - nemicoY) < 35) {
-                    score = 0;           // Reset punti
-                    nemicoAttivo = false; // Il nemico sparisce
-                    velocita = 15;       // Reset velocità
-                    System.out.println("Scontro frontale! Game Over");
+                    gameOver = true;
+                }
+            }
+
+            // Movimento e collisione proiettile
+            if(proiettileAttivo){
+                proiettileX -= velocitaProiettile;
+                if (proiettileX < 0) proiettileAttivo = false;
+
+                if (Math.abs(proiettileX - playerX) < 25 && Math.abs(proiettileY - playerY) < 25) {
+                    gameOver = true;
                 }
             }
         }
-        
         repaint();  
     }
 
     @Override
     public void keyPressed(KeyEvent e){
         int key = e.getKeyCode();   
+
+        if (gameOver) {
+            if (key == KeyEvent.VK_R) resetGioco();
+            return; 
+        }
+
         if (key == KeyEvent.VK_A && playerX > 0)  playerX -= velocita;       
         if (key == KeyEvent.VK_D && playerX < 750) playerX += velocita; 
         if (key == KeyEvent.VK_W && playerY > 0)    playerY -= velocita; 
@@ -195,9 +211,8 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
     @Override public void keyReleased(KeyEvent e){}
     
     public static void main(String[] args){
-        JFrame finestra = new JFrame("Benvenuti nel mio primo videogioco");
+        JFrame finestra = new JFrame("Benvenuti nel mio primo Mini Gioco!");
         GiocoJava gioco = new GiocoJava();
-        
         finestra.add(gioco);
         finestra.setSize(800, 600);
         finestra.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
