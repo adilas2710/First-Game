@@ -24,7 +24,7 @@ public class GiocoJava extends JPanel implements ActionListener, KeyListener {
     private int playerX = 350;      
     private int playerY = 250;      
     private int puntoX, puntoY;     
-    private int score = 19;    
+    private int score = 0;    
     private int highScore = 0;    
     private int velocita = 15;  
     private int nemicoX, nemicoY;
